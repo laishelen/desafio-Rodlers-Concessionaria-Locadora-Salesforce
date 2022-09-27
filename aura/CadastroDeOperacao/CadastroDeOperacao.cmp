@@ -1,0 +1,212 @@
+<aura:component 
+    implements="force:appHostable,flexipage:availableForAllPageTypes,flexipage:availableForRecordHome,force:hasRecordId,forceCommunity:availableForAllPageTypes,force:lightningQuickAction"
+    access="global"
+    controller="CadastroOperacaoApex">
+
+    <!--Atributes-->
+    <!-- Crio uma ação manipuladora que é executada inicialmente -->
+    <aura:handler name="init" value="{!this}" action="{!c.init}"/>
+    <!-- Crio um atributo que recebe uma Booleano, com valor pradão false -->
+    <aura:attribute name="isModalOpen" type="boolean" default="false"/>
+    <aura:attribute name="mostrarDetalhe" type="boolean" default="false"/>
+
+    <!-- Habilita ou desabilita o select do veiculo (dependendo da sede)-->
+    <aura:attribute type="boolean" name="desabilitaVeiculo" default="true"/>
+
+    <!-- Crio um atributo que recebe uma lista -->
+    <aura:attribute type="List" name="todosVeiculos"/>
+    <aura:attribute type="List" name="veiculos"/>  
+    <aura:attribute type="List" name="camposSelecionados"/>
+    <aura:attribute type="List" name="setCamposSelecionados"/>
+    <aura:attribute type="List" name="veiculosSelecionados"/>
+    <aura:attribute type="List" name="carrosVenda"/>
+    <aura:attribute type="List" name="carrosLocacao"/>
+    <aura:attribute type="List" name="clientes"/>
+    <aura:attribute type="List" name="clientesSelecionados"/>
+    <aura:attribute type="List" name="sedes"/>
+    <aura:attribute type="List" name="operacoes"/>
+    <aura:attribute type="List" name="operacaoDetalhe"/>
+    <aura:attribute type="List" name="colunasVenda"/>
+    <aura:attribute type="List" name="colunasDetalhe"/>
+    <aura:attribute type="List" name="columns"/>
+    
+    <!-- Crio atributos que servirão para a operação -->
+    <aura:attribute name="descontoAtivo" type="Boolean"/> 
+    <aura:attribute name="valorDesconto" type="Integer"/> 
+    <aura:attribute name="operacao" type="Integer"/> 
+    <aura:attribute name="veiculo" type="String" />
+    <aura:attribute name="cliente" type="String" />
+    <aura:attribute name="sede" type="String" />
+    <aura:attribute name="valorTotalLocacao" type="Integer" default="0"/>
+    <aura:attribute name="numeroDias" type="Integer" default="1"/>
+    <aura:attribute name="id" type="String" />
+
+    <!-- Crio um card que recebe como título "Cadastro de Operação" -->
+    <lightning:card variant="Narrow" title="Cadastro de Operação" iconName="custom:custom93">
+        <aura:set attribute="actions">
+            <!-- Crio um botão que executa uma função ao ser clicado (iniciarOperacaoLocacao) -->
+            <lightning:button variant="brand" label="Nova Locação" title="Nova Locação" onclick="{! c.iniciarOperacaoLocacao }" />
+            <!-- Crio um botão que executa uma função ao ser clicado (iniciarOperacaoVenda) -->
+            <lightning:button variant="brand" label="Nova Venda" title="Nova Venda" onclick="{! c.iniciarOperacaoVenda }" />
+            <!-- Crio um botão que executa uma função ao ser clicado (encerrarLocacoes) -->
+            <lightning:button variant="brand" label="Encerra Locação" title="Encerrar Locação (ões)" onclick="{! c.encerrarLocacoes}" />
+            <!-- <lightning:button variant="brand" label="Papoca Base" title="Papoca Base" onclick="{! c.limpaTudo }" /> -->
+        </aura:set>
+
+        <!-- Crio datatable para gerar minha tabela na tela -->
+        <lightning:datatable keyField="id" data="{! v.operacoes }" columns="{! v.columns }" onrowaction="{! c.abrirDetalhe }" onrowselection="{! c.handleSelectItem }" 
+        selectedRows="{! v.setCamposSelecionados }" />
+    </lightning:card>
+ 
+   <div class="slds-m-around_xx-large">
+        <!-- Condição if para esconder e mostrar meu modal -->
+        <aura:if isTrue="{!v.isModalOpen}">
+            <!-- Modal/Popup Box começa aqui -->
+            <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" 
+            aria-modal="true" aria-describedby="modal-content-id-1"   
+                class="slds-modal slds-fade-in-open slds-modal_large">
+                <div class="slds-modal__container">
+    
+                <!-- Modal/Popup Box Header começa aqui -->
+                <header class="slds-modal__header">
+                    <!-- Crio um botão (x) no cabeçalho que executa uma função ao ser clicado (cancelar operação) -->
+                    <lightning:buttonIcon iconName="utility:close"
+                        onclick="{! c.cancelarOperacao }"
+                        alternativeText="close"
+                        variant="bare-inverse"
+                        class="slds-modal__close"/>
+                    <h2 id="modal-heading-01" class="slds-text-heading_medium slds-hyphenate">
+                            <aura:if isTrue="{!equals(v.operacao,1)}">Nova Venda</aura:if>
+                            <aura:if isTrue="{!equals(v.operacao,2)}">Nova Locação</aura:if>
+                    </h2>
+                    <aura:if isTrue="{!v.descontoAtivo}"><h3>Este cliente tem direito a um desconto de até {!v.valorDesconto} (Limitado a 20% do valor do carro), na compra de <b>1</b> veículo.</h3></aura:if> 
+                </header>
+                
+                <!--Modal Body começa aqui -->
+                <div class="slds-modal__content slds-p-around_medium" id="modal-content-id-1">
+                    <lightning:layout multipleRows="true" verticalAlign="end">
+                        <lightning:layoutItem size="5" padding="around-small">
+                            <!-- Select para atribuir um valor a Sede --> 
+                            <lightning:select  aura:id="selectSede" label="Escolha uma sede" name="selectSede" required="true" 
+                            onchange="{! c.selecionaSede }" value="{!v.sede}">
+                                <option value="0">Escolha uma sede</option>
+                                <aura:iteration items="{!v.sedes}" var="objeto">
+                                    <option value="{!objeto.Id}" text="{!objeto.Name}"></option>
+                                </aura:iteration>
+                            </lightning:select>
+                        </lightning:layoutItem>
+
+                        <lightning:layoutItem size="5" padding="around-small">
+                            <!-- Select para atribuir a Veículo --> 
+                            <lightning:select disabled="{!v.desabilitaVeiculo}" aura:id="selectVeiculo" label="Escolha um veículo" 
+                            name="selectVeiculo" required="true" onchange="{! c.selecionaVeiculo }" value="{!v.veiculo}">
+                                <option value="0">Escolha um veículo</option>    
+                                <aura:iteration items="{!v.veiculosSelecionados}" var="objeto">
+                                    <option value="{!objeto.Id}" text="{!objeto.Modelo__c}"></option>
+                                </aura:iteration>
+                            </lightning:select>
+                        </lightning:layoutItem>                        
+
+                        <lightning:layoutItem size="6" padding="around-small">
+                            <!-- Select para atribuir a Cliente --> 
+                            <lightning:select aura:id="selectCliente" label="Escolha um cliente" name="selectCliente" required="true" 
+                            onchange="{! c.selecionaCliente }" value="{!v.cliente}">
+                                <option value="0">Escolha um cliente</option>    
+                                <aura:iteration items="{!v.clientesSelecionados}" var="objeto">
+                                    <option value="{!objeto.Id}" text="{!objeto.Nome_Completo__c}"></option>
+                                </aura:iteration>
+                            </lightning:select>
+                        </lightning:layoutItem>       
+                        
+                        <lightning:layoutItem size="2" padding="around-small">
+                            <aura:if isTrue="{!equals(v.operacao,2)}">
+                                <!-- Input para atribuir a numeroDias -->
+                                <lightning:input aura:id="inputDias" type="number" value="{!v.numeroDias}" min="1" max="90" label="Nº de Dias:" 
+                                required="true" onblur="{! c.atualizaPreco}" />
+                            </aura:if>
+                        </lightning:layoutItem>
+
+                        <lightning:layoutItem size="4" padding="around-small">
+                            <aura:if isTrue="{!equals(v.operacao,1)}">
+                                <!-- Input Adicionar Venda que executa uma função ao clicar (adicionarItemVenda) -->
+                                <lightning:button label="Adicionar Venda" iconName="utility:add" iconPosition="left" onclick="{! c.adicionarItemVenda }" />
+                            </aura:if>
+                        </lightning:layoutItem>
+                                                               
+                        <aura:if isTrue="{!equals(v.operacao,1)}">
+                            <!-- Crio datatable para gerar minha tabela no Modal -->
+                            <lightning:datatable
+                                keyField="id" data="{! v.carrosVenda }" label = "Carrinho de Venda"
+                                columns="{! v.colunasVenda }" onrowaction="{! c.handleRowAction}" hideCheckboxColumn="true"/>  
+                        </aura:if>                 
+                        
+                        <p>Valor Total: {! v.valorTotalLocacao }</p>
+                    </lightning:layout>
+                </div>                 
+    
+                <!--Modal Footer começa aqui -->
+                <footer class="slds-modal__footer">
+                    <!-- Input Cancelar que executa uma função ao ser clicado (cancelarOperacao) -->
+                    <lightning:button variant="neutral" label="Cancelar" title="Cancelar" onclick="{! c.cancelarOperacao }"/>
+                        <aura:if isTrue="{!equals(v.operacao,1)}">
+                            <!-- Input Finalizar Venda que executa uma função ao ser clicado (vender) -->
+                            <lightning:button variant="brand" label="Finalizar Venda" title="Finalizar Venda" onclick="{!c.vender}"/>
+                        </aura:if>
+                        <aura:if isTrue="{!equals(v.operacao,2)}">
+                            <!-- Input Finalizar Locação que executa uma função ao ser clicado (alugar) -->
+                            <lightning:button variant="brand" label="Finalizar Locação" title="Finalizar Locação" onclick="{!c.alugar}"/>
+                        </aura:if>           
+                </footer>
+                </div>    
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </aura:if>
+   </div>
+   <!-- MODAL DO DETALHE -->
+   <div class="slds-m-around_x-small">
+        <!-- Condição if para esconder e mostrar meu mostrarDetalhe -->
+        <aura:if isTrue="{!v.mostrarDetalhe}">
+            <!-- Modal Detalhe Box começa aqui -->
+            <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" 
+            aria-modal="true" aria-describedby="modal-content-id-1"   
+                class="slds-modal slds-fade-in-open slds-modal_large">
+                <div class="slds-modal__container">
+    
+                <!-- Modal Detalhe Box Header começa aqui -->
+                <header class="slds-modal__header">
+                    <!-- Crio um botão (x) no cabeçalho que executa uma função ao ser clicado (cancelar operação) -->
+                    <lightning:buttonIcon iconName="utility:close"
+                        onclick="{! c.cancelarOperacao }"
+                        alternativeText="close"
+                        variant="bare-inverse"
+                        class="slds-modal__close"/>
+                    <h2 id="modal-heading-01" class="slds-text-heading_medium slds-hyphenate">
+                            Detalhamento
+                    </h2>
+                </header>
+                <!-- Modal Detalhe BODY começa aqui -->
+                <div class="slds-modal__content slds-p-around_medium" id="modal-content-id-1">
+                    <lightning:layout multipleRows="true" verticalAlign="end">
+                        <p>Valor Total: {! v.valorTotalLocacao }</p>
+                        <!-- Crio datatable para gerar minha tabela no detalhamento -->
+                            <lightning:datatable
+                                keyField="id"
+                                data="{! v.operacaoDetalhe }"
+                                label = "Detalhamento"
+                                columns="{! v.colunasDetalhe }"
+                                hideCheckboxColumn="true"/>  
+                    </lightning:layout>
+                </div>
+
+                <!--Modal Detalhe começa aqui-->
+                <footer class="slds-modal__footer">
+                    <!-- Input Fechar que executa uma função ao ser clicado (cancelarOperacao) -->
+                    <lightning:button variant="neutral" label="Fechar"
+                        title="Fechar" onclick="{! c.cancelarOperacao }"/>
+                </footer>
+                </div>    
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </aura:if>
+   </div>
+</aura:component>

@@ -1,0 +1,115 @@
+<aura:component 
+    implements="force:appHostable,flexipage:availableForAllPageTypes,flexipage:availableForRecordHome,force:hasRecordId,forceCommunity:availableForAllPageTypes,force:lightningQuickAction"
+    access="global"
+    controller="CadastroClienteApex">
+
+    <!--Atributes-->
+    <!-- Crio uma ação manipuladora que é executada inicialmente -->
+    <aura:handler name="init" value="{!this}" action="{!c.init}"/>
+    <!-- Crio um atributo que recebe uma Booleano, com valor pradão false -->
+    <aura:attribute name="isModalOpen" type="boolean" default="false"/>
+
+    <!-- Crio um atributo que recebe uma lista de clientes, sedes e columns -->
+    <aura:attribute type="List" name="clientes"/>
+    <aura:attribute type="List" name="sedes"/>
+    <aura:attribute type="List" name="columns"/>
+    <aura:attribute type="List" name="linhasSelecionadas"/>
+
+    <!-- Crio um atributo que recebe String e Integer -->
+    <aura:attribute name="id" type="String" />
+    <aura:attribute name="nomeCompleto" type="String" />
+    <aura:attribute name="email" type="String" />
+    <aura:attribute name="cpf" type="String" />
+    <aura:attribute name="celular" type="String" />
+    <aura:attribute name="endereco" type="String" />
+    <aura:attribute name="sedeCadastro" type="String" />
+    <aura:attribute name="totalDeDescontoAplicado" type="Integer"/>
+    <aura:attribute name="totalGastosLocacoes" type="Integer" />
+    <aura:attribute name="operacao" type="Integer"/>
+
+    <!-- Crio um card que recebe como título "Cadastro de Clientes" -->
+    <lightning:card variant="Narrow" title="Cadastro de Clientes" iconName="standard:customers">
+        <aura:set attribute="actions">
+            <!-- Crio um botão que executa uma função ao ser clicado (adicionarCliente) -->
+            <lightning:button variant="brand" label="Adicionar" title="Adicionar" onclick="{! c.adicionarCliente }" />
+            <!-- Crio um botão que executa uma função ao ser clicado (deletar) -->
+            <lightning:button variant="brand" label="Deletar" title="Deletar" onclick="{! c.deletarVarios }" />
+        </aura:set>
+
+        <!-- Crio datatable para gerar minha tabela na tela -->
+        <lightning:datatable keyField="id" data="{! v.clientes }" columns="{! v.columns }" selectedRows="{! v.setLinhasSelecionadas }" onrowaction="{! c.handleRowAction}" onrowselection="{! c.handleRowSelection }"/>
+    </lightning:card> 
+ 
+   <div class="slds-m-around_xx-large">      
+        <!-- Condição if para esconder e mostrar meu modal -->
+        <aura:if isTrue="{!v.isModalOpen}">
+            <!-- Modal/Popup Box começa aqui -->
+            <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" 
+            aria-modal="true" aria-describedby="modal-content-id-1"   
+                class="slds-modal slds-fade-in-open">
+                <div class="slds-modal__container">
+    
+                <!-- Modal/Popup Box Header começa aqui -->
+                <header class="slds-modal__header">
+                    <!-- Crio um botão (x) no cabeçalho que executa uma função ao ser clicado (cancelar operação) -->
+                    <lightning:buttonIcon iconName="utility:close"
+                        onclick="{! c.cancelarCliente }"
+                        alternativeText="close"
+                        variant="bare-inverse"
+                        class="slds-modal__close"/>
+                    <h2 id="modal-heading-01" class="slds-text-heading_medium slds-hyphenate">
+                            <aura:if isTrue="{!equals(v.operacao,1)}">Criar</aura:if>
+                            <aura:if isTrue="{!equals(v.operacao,2)}">Editar</aura:if>
+                            <aura:if isTrue="{!equals(v.operacao,3)}">Deletar</aura:if>  Clientes
+                    </h2>
+                </header>
+    
+                <!--Modal Body começa aqui -->
+                <div class="slds-modal__content slds-var-p-around_medium" id="modal-content-id-1">
+                    <!-- Input para atribuir um valor a Nome Completo -->
+                    <lightning:input type="text" value="{!v.nomeCompleto}" label="Nome Completo" required="true" />
+                    <!-- Input para atribuir um valor a E_mail -->    
+                    <lightning:input type="email" value="{!v.email}" label="E_mail" required="true" />        
+                    <!-- Input para atribuir um valor a CPF que executa uma função (handleCpfChange) -->   
+                    <lightning:input type="text" value="{!v.cpf}" label="CPF" onchange="{!c.handleCpfChange}" maxlength="14" required="true" />
+
+                    <!-- Input para atribuir um valor a Número Celular -->  
+                    <span onkeydown="{!c.keyMaskCelular}" class="phone">
+                        <lightning:input type="text" value="{!v.celular}" label="Numero Celular" name="celular" aura:id="phone" maxlength="12" required="true" />
+                    </span>
+                    
+                    <!-- Input para atribuir um valor a Endereço do Cliente -->  
+                    <lightning:input type="text" value="{!v.endereco}" label="Endereço do Cliente" required="true" />
+                    <!-- Select para atribuir um valor a Sede do Cadastro -->  
+                    <lightning:select  aura:id="selectSede" label="Sede do Cadastro" name="selectSede" required="true" value="{!v.sedeCadastro}">
+                        <option value="0">Escolha uma sede</option>    
+                        <aura:iteration items="{!v.sedes}" var="objeto">
+                            <option text="{!objeto.Name}"></option>
+                        </aura:iteration>
+                    </lightning:select>                       
+                </div>
+    
+                <!--Modal Footer começa aqui -->
+                <footer class="slds-modal__footer">
+                    <!-- Input Cancelar que executa uma função ao ser clicado (cancelarCliente) -->
+                    <lightning:button variant="neutral" label="Cancelar" title="Cancelar" onclick="{! c.cancelarCliente }"/>
+                        <aura:if isTrue="{!equals(v.operacao,1)}">
+                            <!-- Input Adicionar Cliente que executa uma função ao ser clicado (adicionar) -->
+                            <lightning:button variant="brand" label="Adicionar" title="Adicionar" onclick="{!c.adicionar}"/>
+                        </aura:if>
+                        <aura:if isTrue="{!equals(v.operacao,2)}">
+                            <!-- Input Editar Cliente que executa uma função ao ser clicado (editar) -->
+                            <lightning:button variant="brand" label="Editar" title="Editar" onclick="{!c.editar}"/>
+                        </aura:if>
+                        <aura:if isTrue="{!equals(v.operacao,3)}">
+                            <!-- Input Deletar Cliente que executa uma função ao ser clicado (deletar) -->
+                            <lightning:button class="slds-button slds-button_destructive"
+                                 variant="brand" label="Deletar" title="Deletar" onclick="{!c.deletar}"/>
+                        </aura:if>                    
+                </footer>
+                </div>    
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </aura:if>
+   </div>
+</aura:component>

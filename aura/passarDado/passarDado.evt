@@ -1,0 +1,6 @@
+<aura:event type="APPLICATION" description="Event template">
+    <aura:attribute name="id" type="String"/>
+    <aura:attribute name="nome" type="String"/>
+    <aura:attribute name="telefone" type="String"/>
+    <aura:attribute name="descricao" type="String"/>
+</aura:event>
